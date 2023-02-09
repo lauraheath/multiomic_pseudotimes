@@ -15,10 +15,10 @@ setwd("~/multiomic_pseudotimes/")
 
 
 #upload metabolomics scripts:
-p1 <- "syn45147406"
-synGet(p1, downloadLocation = "code/")
-p2 <- "syn45147407"
-synGet(p2, downloadLocation = "code/")
+# p1 <- "syn45147406"
+# synGet(p1, downloadLocation = "code/")
+# p2 <- "syn45147407"
+# synGet(p2, downloadLocation = "code/")
 
 
 
@@ -35,16 +35,18 @@ allprots <- rbind(female_prots, male_prots)
 
 #change column names to differentiate from RNAseq
 names(allprots)[names(allprots) == 'Pseudotime'] <- 'Pseudotime_prot'
-names(female_prots)[names(allprots) == 'State2'] <- 'State_prot'
+names(allprots)[names(allprots) == 'State'] <- 'State_prot'
 names(allprots)[names(allprots) == 'SampleID'] <- 'SampleID_prot'
 names(allprots)[names(allprots) == 'pseudotime_sc'] <- 'pseudotime_sc_prot'
 allprots$msex[allprots$msex == 0] <- 'female'
+allprots$msex[allprots$msex == 1] <- 'male'
 allprots$diagnosis[allprots$diagnosis == 'control'] <- 'CT'
 allprots$diagnosis[allprots$diagnosis == 'other'] <- 'OTHER'
 allprots$batch<-NULL
-
-
-
+allprots$apoe_genotype<-NULL
+allprots$educ<-NULL
+allprots$age_death<-NULL
+allprots$pmi<-NULL
 
 
 
@@ -61,29 +63,40 @@ names(allRNAseq)[names(allRNAseq) == 'Pseudotime'] <- 'Pseudotime_rnaseq'
 names(allRNAseq)[names(allRNAseq) == 'State'] <- 'State_rnaseq'
 names(allRNAseq)[names(allRNAseq) == 'SampleID'] <- 'SampleID_rnaseq'
 names(allRNAseq)[names(allRNAseq) == 'pseudotime_sc'] <- 'pseudotime_sc_rnaseq'
-
+allRNAseq$batch<-NULL
+allRNAseq$tissue<-NULL
+allRNAseq$apoe4_allele<-NULL
+allRNAseq$RIN<-NULL
+allRNAseq$pmi<-NULL
 
 
 #upload metabolomics (use supervised output)
-p3 <- synapser::synGet('syn45147413')
-mets <- read.csv(p3$path)
-mets$X<-NULL
-mets$pseudotime_sc_mets <- scale(mets$hsmm_sup.Pseudotime, center=F)
+p2 <- synapser::synGet('syn50912936')
+female_mets <- read.csv(p2$path)
 
-names(mets)[names(mets) == 'hsmm_sup.projid'] <- 'projid'
-names(mets)[names(mets) == 'hsmm_sup.Pseudotime'] <- 'Pseudotime_met'
-names(mets)[names(mets) == 'hsmm_sup.State'] <- 'State_met'
+p2 <- synapser::synGet('syn50912976')
+male_mets <- read.csv(p2$path)
+#combine
+allmets <- rbind(female_mets, male_mets)
 
-
+names(allmets)[names(allmets) == 'Pseudotime'] <- 'Pseudotime_mets'
+names(allmets)[names(allmets) == 'State'] <- 'State_mets'
+names(allmets)[names(allmets) == 'SampleID'] <- 'SampleID_mets'
+names(allmets)[names(allmets) == 'pseudotime_sc'] <- 'pseudotime_sc_mets'
+allmets$apoe_genotype<-NULL
+allmets$msex[allmets$msex == 0] <- 'female'
+allmets$msex[allmets$msex == 1] <- 'male'
+allmets$educ<-NULL
+allmets$pmi<-NULL
 
 
 #merge all three omics plus clinical metadata; keep all observations
 pstimes <- dplyr::full_join(allprots, allRNAseq)
-pstimes <- dplyr::full_join(pstimes, mets)
+pstimes <- dplyr::full_join(pstimes, allmets)
 
 #merge all three omics, but only those with values
-pstimes2 <- dplyr::inner_join(mets, allprots)
-pstimes2 <- dplyr::inner_join(pstimes2, allRNAseq)
+pstimes2 <- dplyr::inner_join(allRNAseq, allprots)
+pstimes2 <- dplyr::inner_join(pstimes2, allmets)
  
 #create a flag for whether any given patient has a sample from each datatype 
 pstimes$rna_samples = 0
@@ -96,6 +109,8 @@ pstimes$met_samples[!is.na(pstimes$Pseudotime_met)] <- 1
 table(pstimes$prot_samples, pstimes$rna_samples)
 table(pstimes$prot_samples, pstimes$met_samples)
 table(pstimes$rna_samples, pstimes$met_samples)
+
+
 
 #save to the workspace:
 write.csv(pstimes, file="data_objects/ALL_OMICS_pseudotimes.csv")
@@ -281,9 +296,34 @@ legend("bottom", legend = levels(pstimes2$cogdx),
 
 
 p <- plot_ly(pstimes2, x=~pseudotime_sc_mets, y=~pseudotime_sc_prot, 
-             z=~pseudotime_sc_rnaseq, color=~braaksc) %>%
+             z=~pseudotime_sc_rnaseq, color=~diagnosis) %>%
   add_markers(size=1)
 print(p)
+
+
+#3-way correlation plots
+df <- subset(pstimes2, select=c(pseudotime_sc_prot, pseudotime_sc_rnaseq, pseudotime_sc_mets))
+cor(df[,unlist(lapply(df, is.numeric))])
+#load psych package
+library(psych)
+
+#create pairs plot
+pairs.panels(df)
+
+df <- subset(pstimes2, select=c(Pseudotime_prot, Pseudotime_rnaseq, Pseudotime_mets))
+cor(df[,unlist(lapply(df, is.numeric))])
+pairs.panels(df)
+
+#try by sex:
+females <- subset(pstimes2, pstimes2$msex=='female')
+df <- subset(females, select=c(pseudotime_sc_prot, pseudotime_sc_rnaseq, pseudotime_sc_mets))
+cor(df[,unlist(lapply(df, is.numeric))])
+pairs.panels(df)
+
+males <- subset(pstimes2, pstimes2$msex=='male')
+df <- subset(males, select=c(pseudotime_sc_prot, pseudotime_sc_rnaseq, pseudotime_sc_mets))
+cor(df[,unlist(lapply(df, is.numeric))])
+pairs.panels(df)
 
 
 
