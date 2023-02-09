@@ -16,7 +16,6 @@ RUN R -e "install.packages('remotes')" \
 && R -e "install.packages('caret')"\
 && R -e "install.packages('data.table')"\
 && R -e "install.packages('ggplot2')"
-&& R -e "install.packages('knitr')"\
 && R -e "BiocManager::install('limma')"\
 && R -e "install.packages('Matrix')"\
 && R -e "install.packages('patchwork')"\
