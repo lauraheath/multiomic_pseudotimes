@@ -21,7 +21,7 @@ RUN R -e "install.packages('remotes')" \
 && R -e "install.packages('Matrix')"\
 && R -e "install.packages('patchwork')"\
 && R -e "install.packages('RColorBrewer')"\
-&& R -e "devtools::install_github('cole-trapnell-lab/leidenbase')"\
+&& R -e "devtools::install_github('cole-trapnell-lab/leidenbase')"
 
 
 run mkdir -p /home/lheath/multiomics \ 
